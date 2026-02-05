@@ -23,7 +23,7 @@ def migrate_all():
     # 1. Historical Training Data
     print("\n1. Migrating Training Data...")
     try:
-        train_path = Path("data/raw/train.csv")
+        train_path = Path("Data/raw/train.csv")
         if train_path.exists():
             df = pd.read_csv(train_path)
             data = df.to_dict(orient="records")
@@ -34,7 +34,7 @@ def migrate_all():
     # 2. Incoming Batches
     print("\n2. Migrating Incoming Batches...")
     for label_type in ["labeled", "unlabeled"]:
-        path = Path(f"data/incoming/{label_type}")
+        path = Path(f"Data/incoming/{label_type}")
         if path.exists():
             for f in glob.glob(str(path / "*.csv")):
                 try:

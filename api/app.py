@@ -42,7 +42,7 @@ repo = AsyncMLRepository()
 MODEL_PATH = Path("model/model.pkl")
 PREPROCESSOR_PATH = Path("model/preprocessor.pkl")
 METRICS_PATH = Path("model/metrics.json")
-DRIFT_PATH = Path("data/reports/drift_report.json")
+DRIFT_PATH = Path("Data/reports/drift_report.json")
 METADATA_PATH = Path("model/metadata.json")
 
 # Global variables for persistent loading

@@ -36,9 +36,9 @@ class RetrainingPipeline:
     
     def __init__(self, 
                  model_dir: str = "model", 
-                 train_data_path: str = "data/raw/train.csv",
-                 incoming_labeled_dir: str = "data/incoming/labeled",
-                 incoming_unlabeled_dir: str = "data/incoming/unlabeled",
+                 train_data_path: str = "Data/raw/train.csv",
+                 incoming_labeled_dir: str = "Data/incoming/labeled",
+                 incoming_unlabeled_dir: str = "Data/incoming/unlabeled",
                  target_col: str = "G3",
                  drift_window_size: int = 1000):
         
@@ -127,7 +127,7 @@ class RetrainingPipeline:
         report = self.detector.get_drift_report()
         
         # Save drift report for dashboard
-        output_path = Path('data/reports/drift_report.json')
+        output_path = Path('Data/reports/drift_report.json')
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, 'w') as f:
             json.dump(report, f, indent=2)

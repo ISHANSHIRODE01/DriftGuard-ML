@@ -36,11 +36,11 @@ st.set_page_config(
 )
 
 # --- Path definitions ---
-DRIFT_REPORT_PATH = Path("data/reports/drift_report.json")
+DRIFT_REPORT_PATH = Path("Data/reports/drift_report.json")
 METADATA_PATH = Path("model/metadata.json")
 CURRENT_MODEL_PATH = Path("model/current_model.pkl")
 PREPROCESSOR_PATH = Path("model/preprocessor.pkl")
-INCOMING_UNLABELED = Path("data/incoming/unlabeled")
+INCOMING_UNLABELED = Path("Data/incoming/unlabeled")
 
 # --- Helper Functions ---
 def auto_bootstrap():
@@ -54,9 +54,9 @@ def auto_bootstrap():
         st.info("📦 First-time setup: Training baseline model...")
         # Ensure directories exist
         Path("model").mkdir(parents=True, exist_ok=True)
-        Path("data/reports").mkdir(parents=True, exist_ok=True)
+        Path("Data/reports").mkdir(parents=True, exist_ok=True)
 
-        df = pd.read_csv("data/raw/train.csv")
+        df = pd.read_csv("Data/raw/train.csv")
         df_clean = clean_raw_data(df)
         
         preprocessor_obj = StudentPerformancePreprocessor()
@@ -165,7 +165,7 @@ with tab0:
         
         # Grade Distribution logic
         st.markdown("### Final Grade (G3) Distribution")
-        df_raw = pd.read_csv("data/raw/train.csv")
+        df_raw = pd.read_csv("Data/raw/train.csv")
         fig_dist = px.histogram(df_raw, x="G3", nbins=20, title="G3 Density", 
                                color_discrete_sequence=['#636EFA'])
         st.plotly_chart(fig_dist, use_container_width=True)
