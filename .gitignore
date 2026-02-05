@@ -7,10 +7,10 @@ __pycache__/
 *.pyo
 *.pyd
 
-# Model Files & Pickles (Large binaries)
-model/*.pkl
-models/*.pkl
-*.pkl
+# Model Files & Pickles (Allowing baseline for deployment)
+# model/*.pkl
+# models/*.pkl
+# *.pkl
 *.npy
 
 # Data reports (Local)

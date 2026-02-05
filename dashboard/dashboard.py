@@ -43,6 +43,50 @@ PREPROCESSOR_PATH = Path("model/preprocessor.pkl")
 INCOMING_UNLABELED = Path("data/incoming/unlabeled")
 
 # --- Helper Functions ---
+def auto_bootstrap():
+    """Automatically generates baseline model if missing."""
+    try:
+        from sklearn.ensemble import RandomForestRegressor
+        from sklearn.model_selection import train_test_split
+        from sklearn.metrics import mean_absolute_error, r2_score
+        from preprocessing.pipeline import StudentPerformancePreprocessor
+
+        st.info("📦 First-time setup: Training baseline model...")
+        df = pd.read_csv("data/raw/train.csv")
+        df_clean = clean_raw_data(df)
+        
+        preprocessor_obj = StudentPerformancePreprocessor()
+        X, y = preprocessor_obj.prepare_data(df_clean)
+        X_train, X_val, _, y_train, y_val, _ = preprocessor_obj.split_data(X, y)
+        
+        preprocessor_obj.create_preprocessing_pipeline()
+        X_train_prep, X_val_prep, _ = preprocessor_obj.fit_transform_pipeline(X_train, X_val, X_val)
+        
+        joblib.dump(preprocessor_obj.preprocessor, PREPROCESSOR_PATH)
+        model = RandomForestRegressor(n_estimators=100, random_state=42)
+        model.fit(X_train_prep, y_train)
+        
+        joblib.dump(model, CURRENT_MODEL_PATH)
+        joblib.dump(model, Path("model/model.pkl"))
+        
+        # Metadata
+        y_pred = model.predict(X_val_prep)
+        meta = {
+            "latest_version": 1, "current_production_version": 1,
+            "last_updated": datetime.now().isoformat(),
+            "history": [{"version": 1, "timestamp": datetime.now().isoformat(), 
+                         "metrics": {"mae": mean_absolute_error(y_val, y_pred), "r2": r2_score(y_val, y_pred)},
+                         "file": "model_v1.pkl"}]
+        }
+        with open(METADATA_PATH, 'w') as f:
+            json.dump(meta, f, indent=4)
+        
+        st.success("✅ Baseline model initialized!")
+        return True
+    except Exception as e:
+        st.error(f"Failed to auto-bootstrap: {e}")
+        return False
+
 def load_json(path):
     if not path.exists():
         return None
@@ -50,6 +94,11 @@ def load_json(path):
         return json.load(f)
 
 def load_prediction_artifacts():
+    # If files don't exist, try auto-bootstrapping
+    if not CURRENT_MODEL_PATH.exists() or not PREPROCESSOR_PATH.exists():
+        if not auto_bootstrap():
+            return None, None
+            
     try:
         model = joblib.load(CURRENT_MODEL_PATH)
         preprocessor = joblib.load(PREPROCESSOR_PATH)
