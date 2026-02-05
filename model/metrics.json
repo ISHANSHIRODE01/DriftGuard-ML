@@ -1,0 +1,12 @@
+{
+  "metadata": {
+    "saved_at": "2026-02-05T13:07:05.295891",
+    "model_type": "RandomForestRegressor (Retrained)",
+    "status": "production_ready"
+  },
+  "metrics": {
+    "validation_mae": 1.1781012658227847,
+    "validation_r2": 0.8104977221579721,
+    "retrained_on_drift": true
+  }
+}

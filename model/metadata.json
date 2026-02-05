@@ -1,0 +1,16 @@
+{
+    "latest_version": 1,
+    "current_production_version": 1,
+    "last_updated": "2026-02-05T13:42:06.042567",
+    "history": [
+        {
+            "version": 1,
+            "timestamp": "2026-02-05T13:42:06.042567",
+            "metrics": {
+                "mae": 1.119,
+                "r2": 0.905992963576159
+            },
+            "file": "model_v1.pkl"
+        }
+    ]
+}

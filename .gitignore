@@ -1,0 +1,24 @@
+# Credentials & Secrets
+.env
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Model Files & Pickles (Large binaries)
+model/*.pkl
+models/*.pkl
+*.pkl
+*.npy
+
+# Data reports (Local)
+data/reports/*.json
+data/incoming/labeled/*.csv
+data/incoming/unlabeled/*.csv
+
+# IDEs
+.vscode/
+.idea/
+.pytest_cache/
