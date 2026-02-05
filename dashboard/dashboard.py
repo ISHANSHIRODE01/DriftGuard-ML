@@ -52,6 +52,10 @@ def auto_bootstrap():
         from preprocessing.pipeline import StudentPerformancePreprocessor
 
         st.info("📦 First-time setup: Training baseline model...")
+        # Ensure directories exist
+        Path("model").mkdir(parents=True, exist_ok=True)
+        Path("data/reports").mkdir(parents=True, exist_ok=True)
+
         df = pd.read_csv("data/raw/train.csv")
         df_clean = clean_raw_data(df)
         
@@ -290,6 +294,7 @@ with tab3:
                     
                     # 4. Save to "Incoming Unlabeled"
                     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+                    INCOMING_UNLABELED.mkdir(parents=True, exist_ok=True)
                     save_path = INCOMING_UNLABELED / f"batch_{timestamp}.csv"
                     df_input.to_csv(save_path, index=False)
                     
