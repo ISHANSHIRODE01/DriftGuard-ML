@@ -17,8 +17,9 @@ from pathlib import Path
 from datetime import datetime
 
 # --- Deployment Patch: Add root to path ---
-# This ensures Streamlit Cloud can find local packages like 'preprocessing'
-sys.path.append(os.getcwd())
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if ROOT_DIR not in sys.path:
+    sys.path.append(ROOT_DIR)
 
 from preprocessing.pipeline import clean_raw_data # Centralized Logic
 from database.repository import MLRepository

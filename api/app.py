@@ -12,10 +12,18 @@ Endpoints:
 import joblib
 import json
 import pandas as pd
+import sys
+import os
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from pathlib import Path
 from typing import Dict, Any, List
+
+# --- Deployment Patch: Add root to path ---
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if ROOT_DIR not in sys.path:
+    sys.path.append(ROOT_DIR)
+
 from preprocessing.pipeline import clean_raw_data # Centralized Logic
 from database.repository import AsyncMLRepository
 from database.connection import db_manager

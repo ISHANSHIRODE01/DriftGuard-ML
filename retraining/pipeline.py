@@ -9,12 +9,19 @@ import joblib
 import json
 import shutil
 import glob
+import sys
+import os
 from pathlib import Path
 from datetime import datetime
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, r2_score
 from sklearn.pipeline import Pipeline
+
+# --- Deployment Patch: Add root to path ---
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if ROOT_DIR not in sys.path:
+    sys.path.append(ROOT_DIR)
 
 # Imports
 from drift.detector import DriftDetector
