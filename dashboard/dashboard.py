@@ -11,12 +11,20 @@ import plotly.graph_objects as go
 import json
 import joblib
 import time
+import sys
+import os
 from pathlib import Path
 from datetime import datetime
+
+# --- Deployment Patch: Add root to path ---
+# This ensures Streamlit Cloud can find local packages like 'preprocessing'
+sys.path.append(os.getcwd())
+
 from preprocessing.pipeline import clean_raw_data # Centralized Logic
 from database.repository import MLRepository
 
 # Initialize Repository
+# We wrap this in a check for local vs cloud if needed, but for now, simple init.
 db_repo = MLRepository()
 
 # --- Configuration ---
