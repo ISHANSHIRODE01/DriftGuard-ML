@@ -1,7 +1,7 @@
 {
-    "latest_version": 1,
-    "current_production_version": 1,
-    "last_updated": "2026-02-05T13:42:06.042567",
+    "latest_version": 6,
+    "current_production_version": 6,
+    "last_updated": "2026-02-14T14:16:11.613744",
     "history": [
         {
             "version": 1,
@@ -11,6 +11,51 @@
                 "r2": 0.905992963576159
             },
             "file": "model_v1.pkl"
+        },
+        {
+            "version": 2,
+            "timestamp": "2026-01-10T14:16:11.613744",
+            "metrics": {
+                "mae": 2.510924763126231,
+                "r2": 0.7432423694047382
+            },
+            "file": "model_v2.pkl"
+        },
+        {
+            "version": 3,
+            "timestamp": "2026-01-17T14:16:11.613744",
+            "metrics": {
+                "mae": 2.348757026325356,
+                "r2": 0.7701228305907782
+            },
+            "file": "model_v3.pkl"
+        },
+        {
+            "version": 4,
+            "timestamp": "2026-01-24T14:16:11.613744",
+            "metrics": {
+                "mae": 2.182791536668141,
+                "r2": 0.8191001340008295
+            },
+            "file": "model_v4.pkl"
+        },
+        {
+            "version": 5,
+            "timestamp": "2026-01-31T14:16:11.613744",
+            "metrics": {
+                "mae": 2.092610099819034,
+                "r2": 0.8409162225703533
+            },
+            "file": "model_v5.pkl"
+        },
+        {
+            "version": 6,
+            "timestamp": "2026-02-07T14:16:11.613744",
+            "metrics": {
+                "mae": 1.8525790603320638,
+                "r2": 0.8731658434651511
+            },
+            "file": "model_v6.pkl"
         }
     ]
 }
