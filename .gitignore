@@ -22,3 +22,6 @@ Data/incoming/unlabeled/*.csv
 .vscode/
 .idea/
 .pytest_cache/
+
+# Allow .streamlit config for deployment
+!.streamlit/
