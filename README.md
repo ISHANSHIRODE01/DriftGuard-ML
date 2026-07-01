@@ -513,6 +513,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 [Report Bug](issues) • [Request Feature](issues) • [Documentation](docs/)
 
-Made with ❤️ and ☕ by [Your Name]
+Made with ❤️ and ☕ by [Ishan Shirode]
 
 </div>
