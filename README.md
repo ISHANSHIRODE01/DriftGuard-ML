@@ -492,9 +492,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 👨‍💻 Author
 
 **Your Name**
-- GitHub: [@yourusername](https://github.com/yourusername)
-- LinkedIn: [Your Profile](https://linkedin.com/in/yourprofile)
-- Portfolio: [yourportfolio.com](https://yourportfolio.com)
+- GitHub: [@ISHANSHIRODE01](https://github.com/ISHANSHIRODE01)
+- LinkedIn: [Ishan Shirode]((https://www.linkedin.com/in/ishan-shirode/))
 
 ---
 
