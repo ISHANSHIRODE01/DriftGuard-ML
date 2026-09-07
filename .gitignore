@@ -1,27 +1,15 @@
-# Credentials & Secrets
-.env
-
-# Python artifacts
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-# Model Files & Pickles (Allowing baseline for deployment)
-# model/*.pkl
-# models/*.pkl
-# *.pkl
-*.npy
-
-# Data reports (Local)
-Data/reports/*.json
-Data/incoming/labeled/*.csv
-Data/incoming/unlabeled/*.csv
-
-# IDEs
-.vscode/
-.idea/
+*.py[cod]
+.venv/
+venv/
+*.joblib
+artifacts/
+mlruns/
+mlflow.db
+*.db
 .pytest_cache/
-
-# Allow .streamlit config for deployment
-!.streamlit/
+.ipynb_checkpoints/
+data/*.csv
+!data/.gitkeep
+.env
+.DS_Store

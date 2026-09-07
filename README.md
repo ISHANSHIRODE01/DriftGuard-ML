@@ -1,517 +1,194 @@
-# 🛡️ DriftGuard-ML: Production-Grade ML Monitoring System
+# DriftGuard
 
-<div align="center">
+Automated drift detection and gated model retraining, evaluated on a real
+concept-drift benchmark against a no-retraining control.
 
-[![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-green.svg)](https://fastapi.tiangolo.com/)
-[![Streamlit](https://img.shields.io/badge/Streamlit-1.30+-red.svg)](https://streamlit.io/)
-[![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-brightgreen.svg)](https://www.mongodb.com/)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-
-**An end-to-end MLOps system for automated drift detection, model retraining, and real-time monitoring**
-
-[Live Demo](https://driftguard-ml.onrender.com) • [Documentation](docs/) • [Report Bug](issues)
-
-</div>
+[![CI](https://github.com/ISHANSHIRODE01/DriftGuard-ML/actions/workflows/ci.yml/badge.svg)](https://github.com/ISHANSHIRODE01/DriftGuard-ML/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/python-3.10%2B-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
 
 ---
 
-## 📋 Table of Contents
+## The problem
 
-- [Problem Statement](#-problem-statement)
-- [Solution Overview](#-solution-overview)
-- [Key Features](#-key-features)
-- [System Architecture](#-system-architecture)
-- [Tech Stack](#-tech-stack)
-- [Screenshots](#-screenshots)
-- [Getting Started](#-getting-started)
-- [Project Structure](#-project-structure)
-- [How It Works](#-how-it-works)
-- [Deployment](#-deployment)
-- [Results & Impact](#-results--impact)
-- [Future Enhancements](#-future-enhancements)
-- [Contributing](#-contributing)
-- [License](#-license)
+A deployed model does not fail loudly. It keeps returning predictions with
+full confidence while the world underneath it changes, and nothing in the
+serving stack notices. By the time a business metric moves, the model has been
+wrong for weeks.
 
----
+DriftGuard watches the incoming data distribution and the model's live
+performance, retrains when either degrades, and refuses to promote the
+retrained model unless it demonstrably wins.
 
-## 🎯 Problem Statement
+## Result
 
-In production machine learning systems, **data drift** is a critical challenge that causes model performance to degrade over time. When the statistical properties of input data change, models trained on historical data become obsolete, leading to:
+Measured on **ELEC2** (45,312 records, 31 chronological batches), comparing a
+frozen model against DriftGuard over the same 28 evaluation batches:
 
-- **Silent Failures**: Models continue to return predictions, but accuracy drops significantly
-- **Business Impact**: Poor predictions lead to incorrect decisions and lost revenue
-- **Manual Overhead**: Teams spend hours manually monitoring and retraining models
-- **Lack of Visibility**: No automated alerts when drift occurs
+| Metric | Static model | DriftGuard | Change |
+|---|---|---|---|
+| Mean F1 (minority class) | 0.4515 | **0.5789** | **+28.2%** |
+| Mean accuracy | 0.6988 | 0.7064 | +1.1% |
+| Batches won | 8 | **17** | 3 tied |
+| Retrains triggered | — | 12 | — |
+| Challengers promoted | — | 7 | 5 rejected by gate |
 
-### Real-World Context
+![Drift timeline](reports/drift_timeline.png)
 
-Consider a student performance prediction system used by educational institutions:
-- Student demographics change over time
-- Teaching methods evolve
-- Socio-economic factors shift
-- Without monitoring, the model's predictions become unreliable
+**The honest read: accuracy barely moved (+1.1%) while F1 rose 28%.** That gap
+is the actual finding. As the data drifted, the stale model collapsed toward
+predicting the majority class — it stayed superficially accurate while losing
+the ability to identify the minority class at all, bottoming out near F1 0.05
+around batches 20–23. Retraining restored minority-class recall. Reporting only
+accuracy on this problem would have hidden a near-total failure.
 
-**DriftGuard-ML solves this by providing automated, production-ready drift detection and model maintenance.**
+Note batch 26, where the static model beats DriftGuard on accuracy. Retraining
+on a recent window is not a free win: a shorter window means less data and
+higher variance. That trade-off is visible in the chart rather than smoothed
+away.
 
----
+![Feature drift](reports/feature_drift.png)
 
-## 💡 Solution Overview
+`nswprice` drifted in **28 of 28** batches — consistent with the documented
+regime change in the NSW electricity market that makes ELEC2 a drift benchmark
+in the first place.
 
-DriftGuard-ML is a **closed-loop MLOps pipeline** that:
+## Dataset
 
-1. **Monitors** incoming production data for statistical drift using KS-Tests and Chi-Square analysis
-2. **Detects** when feature distributions shift beyond acceptable thresholds
-3. **Alerts** stakeholders with real-time, color-coded severity indicators
-4. **Retrains** models automatically using a Champion-Challenger strategy
-5. **Promotes** new models only if they demonstrate significant improvement
-6. **Logs** all events, predictions, and drift scores for complete auditability
+**ELEC2** (Harries, 1999) — half-hourly records from the New South Wales
+electricity market, labelled with whether the spot price rose or fell relative
+to a 24-hour moving average. Market rules changed partway through collection,
+so the feature→label relationship genuinely shifts. This matters: a drift
+system validated on synthetic noise proves nothing about real drift.
 
-### Why DriftGuard-ML?
+Batches are strictly chronological (1,440 records ≈ 30 days). Shuffling would
+leak future information backwards and invalidate the entire experiment.
 
-✅ **Fully Automated**: No manual intervention required  
-✅ **Production-Ready**: Thread-safe, versioned, zero-downtime updates  
-✅ **Statistically Rigorous**: Uses industry-standard drift detection methods  
-✅ **Observable**: Real-time dashboard with comprehensive metrics  
-✅ **Safe**: Champion-Challenger ensures no performance regressions  
+## How the decision works
 
----
+**Retrain trigger** — fires on *either* signal:
 
-## ✨ Key Features
+1. **Distribution drift** — >50% of monitored features fail a two-sample
+   Kolmogorov-Smirnov test at p < 0.05 **and** show PSI ≥ 0.10.
+2. **Performance breach** — batch accuracy falls >5 points below the
+   champion's validation accuracy.
 
-### 🔍 Advanced Drift Detection
-- **Statistical Methods**: Kolmogorov-Smirnov (numerical) & Chi-Square (categorical) tests
-- **Drift Scoring**: Single 0-100 metric for overall system health
-- **Feature-Level Analysis**: Identifies exactly which features are drifting
-- **Historical Tracking**: Visualize drift trends over time
+Both are needed. Distribution drift alone can be harmless if the model barely
+uses the shifted feature. Performance drops can occur with no measurable
+feature drift, when only the feature→label relationship changed. Monitoring
+one signal misses half the failure modes.
 
-### 🚨 Real-Time Alert System
-- **Multi-Level Alerts**: LOW (🟢) → MODERATE (🟠) → HIGH (🔴) → CRITICAL (🚨)
-- **Performance Monitoring**: Automatic MAE threshold alerts
-- **Visual Indicators**: Color-coded cards and severity badges
-- **Actionable Insights**: Clear recommendations for each alert level
+**Why PSI gates the KS test:** KS is sensitive to sample size. At 45k rows a
+0.02 mean shift is "statistically significant" and operationally irrelevant.
+PSI is an effect size, independent of n, so requiring both stops the detector
+alerting on every batch. `tests/test_drift_detector.py` covers this directly.
 
-### 🔄 Automated Retraining Pipeline
-- **Champion-Challenger Strategy**: New models must prove superiority
-- **Safety Margin**: Requires >1% improvement to prevent thrashing
-- **Atomic Updates**: Zero-downtime model swapping with file locks
-- **Version Control**: Complete history of all model versions
+**Promotion gate** — the challenger must beat the champion by ≥1 point on the
+*same* unseen batch. Both models are scored on identical data; comparing a
+challenger's fresh validation score against the champion's months-old score
+would rig the contest. 5 of 12 retrains were rejected here — without the gate
+those would have been 5 unnecessary model swaps, each destroying the ability
+to attribute a later regression to anything.
 
-### 📊 Production Dashboard
-- **8 Key Metrics**: MAE, R², drift score, feature counts, improvements
-- **Interactive Charts**: Plotly-based visualizations with hover details
-- **System Logs**: Complete audit trail of all events
-- **Live Predictions**: Test models with automatic logging
-- **Download Reports**: Export drift analysis as CSV/JSON
+A cool-down of 2 batches between retrains prevents thrashing during sustained
+drift.
 
-### 🗄️ Complete Observability
-- **MongoDB Integration**: All predictions, drift reports, and versions logged
-- **Event Logging**: Timestamped records of system activities
-- **Drift History**: Persistent storage of drift scores over time
-- **Retraining Audit**: Track performance improvements across versions
+## Architecture
 
-### 🚀 High-Performance API
-- **FastAPI Backend**: Sub-50ms prediction latency
-- **Async Architecture**: Non-blocking database operations
-- **Pydantic Validation**: Type-safe request/response handling
-- **Auto-Documentation**: Interactive Swagger UI at `/docs`
-
----
-
-## 🏗️ System Architecture
-
-```mermaid
-graph TB
-    subgraph "Data Ingestion"
-        A[Production Traffic] --> B[FastAPI Server]
-        C[Dashboard UI] --> B
-    end
-    
-    subgraph "Inference Layer"
-        B --> D[Preprocessor]
-        D --> E[Current Model v6]
-        E --> F[Predictions]
-    end
-    
-    subgraph "Logging & Storage"
-        F --> G[(MongoDB Atlas)]
-        F --> H[CSV Batches]
-        H --> I[Data/incoming/unlabeled]
-    end
-    
-    subgraph "Monitoring Pipeline"
-        I --> J[Drift Detector]
-        J --> K{Drift Detected?}
-        K -->|Yes| L[Alert System]
-        K -->|No| M[System Stable]
-    end
-    
-    subgraph "Retraining Pipeline"
-        L --> N[Load Labeled Data]
-        N --> O[Train Challenger Model]
-        O --> P{Better than Champion?}
-        P -->|Yes| Q[Model Versioner]
-        P -->|No| R[Keep Champion]
-        Q --> S[Update current_model.pkl]
-        S --> E
-    end
-    
-    subgraph "Observability"
-        G --> T[Streamlit Dashboard]
-        J --> U[Drift Reports]
-        U --> T
-        Q --> V[Metadata Logs]
-        V --> T
-    end
-    
-    style E fill:#4CAF50
-    style L fill:#FF9800
-    style Q fill:#2196F3
-    style T fill:#9C27B0
+```
+ELEC2 stream (chronological batches)
+        │
+        ▼
+┌───────────────────┐     ┌──────────────────────────┐
+│ DriftDetector     │────▶│ Postgres                 │
+│ KS · Chi² · PSI   │     │  model_versions          │
+└───────────────────┘     │  drift_runs              │
+        │                 │  feature_drift           │
+        ▼                 │  predictions             │
+┌───────────────────┐     └──────────────────────────┘
+│ DriftMonitor      │                 ▲
+│ trigger → retrain │                 │
+│ → promotion gate  │─────────────────┘
+└───────────────────┘
+        │                 ┌──────────────────────────┐
+        ├────────────────▶│ MLflow (params/metrics)  │
+        │                 └──────────────────────────┘
+        ▼
+┌───────────────────┐     ┌──────────────────────────┐
+│ FastAPI /predict  │     │ Streamlit dashboard      │
+└───────────────────┘     └──────────────────────────┘
 ```
 
-### Data Flow
+The schema is normalised so "which model was serving when feature X drifted?"
+is one SQL join instead of a filesystem hunt.
 
-1. **Inference**: User requests → API → Preprocessing → Model → Prediction
-2. **Logging**: Prediction → MongoDB + CSV batch storage
-3. **Monitoring**: Batch data → Drift detector → Statistical tests → Report
-4. **Alerting**: Drift report → Dashboard → Visual alerts + severity scoring
-5. **Retraining**: Drift detected → Load labeled data → Train challenger → Evaluate → Promote if better
-6. **Deployment**: New model → Versioned storage → Atomic swap → Production
+## Quickstart
 
----
-
-## 🛠️ Tech Stack
-
-### Core ML & Data Science
-- **Python 3.9+**: Primary language
-- **Scikit-Learn**: RandomForest regressor, preprocessing pipelines
-- **Pandas & NumPy**: Data manipulation and numerical computing
-- **SciPy**: Statistical tests (KS-Test, Chi-Square)
-
-### Backend & API
-- **FastAPI**: High-performance async API framework
-- **Uvicorn**: ASGI server for production deployment
-- **Pydantic**: Data validation and settings management
-
-### Frontend & Visualization
-- **Streamlit**: Interactive dashboard framework
-- **Plotly**: Advanced interactive visualizations
-- **Custom CSS**: Professional UI styling
-
-### Database & Storage
-- **MongoDB Atlas**: Cloud-hosted NoSQL database
-- **Motor**: Async MongoDB driver for FastAPI
-- **PyMongo**: Sync driver for scripts and dashboard
-
-### MLOps & Deployment
-- **Joblib**: Model serialization
-- **Render**: Cloud hosting platform
-- **Git**: Version control
-- **Python-dotenv**: Environment management
-
-### Monitoring & Logging
-- **Custom Logger**: Event tracking with JSON persistence
-- **Drift History Manager**: Time-series drift score storage
-- **Evidently**: Advanced drift detection (optional)
-
----
-
-## 📸 Screenshots
-
-### 1. Production Dashboard - Overview
-![Dashboard Overview](docs/screenshots/dashboard_overview.png)
-*Real-time monitoring with drift alerts, performance metrics, and trend charts*
-
-### 2. Alert System
-![Alert System](docs/screenshots/alerts.png)
-*Color-coded alerts with severity levels and actionable recommendations*
-
-### 3. Performance Metrics
-![Performance Metrics](docs/screenshots/metrics.png)
-*Before/after comparison showing model improvement from retraining*
-
-### 4. Drift Analysis
-![Drift Analysis](docs/screenshots/drift_analysis.png)
-*Feature-level drift detection with statistical test results*
-
-### 5. System Logs
-![System Logs](docs/screenshots/system_logs.png)
-*Complete audit trail of all system events and retraining history*
-
-### 6. Live Predictions
-![Live Predictions](docs/screenshots/predictions.png)
-*Interactive prediction form with automatic logging*
-
----
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Python 3.9 or higher
-- MongoDB Atlas account (free tier works)
-- Git
-
-### Installation
-
-1. **Clone the repository**
-```bash
-git clone https://github.com/yourusername/DriftGuard-ML.git
-cd DriftGuard-ML
-```
-
-2. **Create virtual environment**
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-3. **Install dependencies**
 ```bash
 pip install -r requirements.txt
+python scripts/download_data.py          # fetch ELEC2 -> data/elec2.csv
+python experiments/run_experiment.py     # both arms, writes reports/
+python experiments/make_charts.py        # regenerate figures
+pytest tests/ -v                         # 29 tests
 ```
 
-4. **Set up environment variables**
+Full stack with Postgres:
+
 ```bash
-cp .env.example .env
-# Edit .env and add your MongoDB URI
+docker compose up --build
+# API       http://localhost:8000/docs
+# Dashboard http://localhost:8501
 ```
 
-5. **Generate test data** (optional)
+## API
+
 ```bash
-python dashboard/test_dashboard.py --severity moderate
+curl -X POST localhost:8000/predict -H 'Content-Type: application/json' -d '{
+  "records": [{"nswprice":0.05,"nswdemand":0.42,"vicprice":0.003,
+               "vicdemand":0.42,"transfer":0.41,"period":0.5,"day":3}]}'
 ```
 
-### Running Locally
-
-#### Option 1: Dashboard (Recommended for first-time users)
-```bash
-streamlit run dashboard/dashboard_v2.py
-```
-Access at: http://localhost:8501
-
-#### Option 2: API Server
-```bash
-uvicorn api.app:app --reload
-```
-Access at: http://localhost:8000  
-Docs at: http://localhost:8000/docs
-
-#### Option 3: Run Both
-```bash
-# Terminal 1
-uvicorn api.app:app --reload
-
-# Terminal 2
-streamlit run dashboard/dashboard_v2.py --server.port 8502
+```json
+{"model_version": 13, "n_records": 1, "latency_ms": 69.19,
+ "predictions": [{"prediction": 1, "probability_up": 0.5087}]}
 ```
 
----
+| Endpoint | Purpose |
+|---|---|
+| `GET /health` | Liveness + serving model version |
+| `POST /predict` | Score records with the champion |
+| `GET /monitoring/timeline` | Drift and performance history |
+| `GET /monitoring/features` | Feature drift frequency ranking |
+| `GET /models` | Model registry |
 
-## 📁 Project Structure
+## Stack
 
-```
-DriftGuard-ML/
-├── api/                          # FastAPI backend
-│   ├── app.py                    # Main API application
-│   └── __init__.py
-├── dashboard/                    # Streamlit frontend
-│   ├── dashboard_v2.py           # Enhanced production dashboard
-│   └── test_dashboard.py        # Test data generator
-├── drift/                        # Drift detection engine
-│   ├── detector.py               # Statistical drift tests
-│   └── sync_manager.py
-├── retraining/                   # Automated retraining
-│   └── pipeline.py               # Champion-Challenger logic
-├── preprocessing/                # Data transformation
-│   └── pipeline.py               # Feature engineering
-├── deployment/                   # Deployment utilities
-│   ├── model_versioner.py        # Version management
-│   └── migrate_to_mongo.py
-├── database/                     # Data access layer
-│   ├── connection.py             # MongoDB connection
-│   └── repository.py             # CRUD operations
-├── model/                        # Model artifacts
-│   ├── current_model.pkl         # Active production model
-│   ├── preprocessor.pkl          # Feature transformer
-│   ├── metadata.json             # Version history
-│   └── model_v*.pkl              # Versioned models
-├── Data/                         # Data storage
-│   ├── raw/                      # Training data
-│   ├── incoming/                 # Production batches
-│   └── reports/                  # Drift & system logs
-├── docs/                         # Documentation
-│   ├── PROJECT_ANALYSIS_COMPLETE.md
-│   ├── DASHBOARD_V2_GUIDE.md
-│   └── screenshots/
-├── .streamlit/                   # Streamlit config
-│   └── config.toml
-├── requirements.txt              # Python dependencies
-├── render.yaml                   # Render deployment config
-├── runtime.txt                   # Python version
-└── README.md                     # This file
-```
+Python · scikit-learn · SciPy · SQLAlchemy · Postgres · MLflow · FastAPI ·
+Streamlit · Plotly · Docker Compose · pytest · GitHub Actions
 
----
+## Limitations
 
-## ⚙️ How It Works
+Stated plainly, because these bound what the result means:
 
-### 1. Drift Detection Algorithm
+- **Labels are assumed immediately available.** Real deployments get labels
+  late or never. Practical systems need proxy signals or delayed-label
+  evaluation; this uses the benchmark's ground truth.
+- **RandomForest only.** No architecture search. The question studied is
+  *when to retrain*, not which model is best.
+- **A 6-batch retrain window is a hand-tuned constant.** Adaptive windowing
+  (ADWIN, KSWIN) would likely do better and is the obvious next step.
+- **One dataset.** Results on ELEC2 do not automatically transfer to other
+  drift patterns. Airlines and Covertype would be the next benchmarks.
+- **Single-node.** No distributed training, no async serving, no autoscaling.
 
-```python
-# For each feature:
-if feature_type == "numerical":
-    # Kolmogorov-Smirnov Test
-    statistic, p_value = ks_2samp(reference_data, current_data)
-    drift_detected = p_value < 0.05
-    
-elif feature_type == "categorical":
-    # Chi-Square Test
-    chi2, p_value = chi2_contingency(contingency_table)
-    drift_detected = p_value < 0.05
+## Next
 
-# Calculate overall drift score (0-100)
-drift_score = mean([(1 - p_value) * 100 for drifted features])
-```
+- ADWIN / KSWIN adaptive drift detection from `river`, benchmarked against
+  the fixed-window approach here
+- Delayed-label simulation to test behaviour under realistic feedback lag
+- Per-feature attribution of performance loss, not just distribution shift
+- Shadow deployment so a challenger serves live traffic before promotion
 
-### 2. Retraining Decision Logic
+## License
 
-```python
-if drift_detected and labeled_data_available:
-    challenger = train_new_model(combined_data)
-    
-    mae_champion = evaluate(champion_model, validation_set)
-    mae_challenger = evaluate(challenger_model, validation_set)
-    
-    if mae_challenger < (mae_champion - 0.01):  # 1% improvement threshold
-        promote_to_production(challenger)
-        log_retraining_event()
-    else:
-        keep_champion()
-```
-
-### 3. Model Versioning
-
-```python
-# Thread-safe versioning with atomic updates
-versioner.save_new_version(
-    model=challenger,
-    metrics={"mae": 1.85, "r2": 0.87}
-)
-# Creates: model_v7.pkl
-# Updates: current_model.pkl (atomic copy)
-# Logs: metadata.json with full history
-```
-
----
-
-## 🌐 Deployment
-
-### Deploy to Render (Recommended)
-
-1. **Push to GitHub**
-```bash
-git add .
-git commit -m "Initial commit"
-git push origin main
-```
-
-2. **Create Web Service on Render**
-- Go to [dashboard.render.com](https://dashboard.render.com)
-- Click "New +" → "Web Service"
-- Connect your GitHub repository
-- Render auto-detects `render.yaml`
-
-3. **Set Environment Variables**
-- `MONGO_URI`: Your MongoDB connection string
-- `PYTHON_VERSION`: 3.9.0
-
-4. **Deploy**
-- Click "Create Web Service"
-- Wait 3-5 minutes for build
-- Access your live app!
-
-**Detailed Guide**: See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
-
----
-
-## 📊 Results & Impact
-
-### Performance Metrics
-
-| Metric | Before Monitoring | After DriftGuard-ML | Improvement |
-|--------|------------------|---------------------|-------------|
-| **Mean Absolute Error** | 2.50 | 1.85 | **26% ↓** |
-| **R² Score** | 0.75 | 0.87 | **16% ↑** |
-| **Manual Monitoring Time** | 5 hrs/week | 0 hrs/week | **100% ↓** |
-| **Drift Detection Time** | 24-48 hours | Real-time | **Instant** |
-| **Model Update Frequency** | Monthly | As needed | **Adaptive** |
-
-### Business Impact
-
-✅ **Automated Monitoring**: Zero manual effort required  
-✅ **Faster Response**: Drift detected within minutes, not days  
-✅ **Improved Accuracy**: Continuous model improvement through retraining  
-✅ **Cost Savings**: Reduced engineering time by 100%  
-✅ **Auditability**: Complete logs for compliance and debugging  
-
----
-
-## 🔮 Future Enhancements
-
-- [ ] **A/B Testing**: Serve multiple models simultaneously to live traffic
-- [ ] **Multi-Model Support**: Monitor multiple models in one dashboard
-- [ ] **Advanced Drift Methods**: PSI, Wasserstein distance, KL divergence
-- [ ] **Slack/Email Alerts**: Automated notifications on drift detection
-- [ ] **CI/CD Integration**: GitHub Actions for automated testing and deployment
-- [ ] **Docker Support**: Containerized deployment for Kubernetes
-- [ ] **Feature Importance Tracking**: Monitor which features contribute most to drift
-- [ ] **Explainability**: SHAP values for prediction explanations
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 👨‍💻 Author
-
-**Your Name**
-- GitHub: [@ISHANSHIRODE01](https://github.com/ISHANSHIRODE01)
-- LinkedIn: [Ishan Shirode]((https://www.linkedin.com/in/ishan-shirode/))
-
----
-
-## 🙏 Acknowledgments
-
-- UCI Machine Learning Repository for the Student Performance dataset
-- Streamlit team for the amazing dashboard framework
-- FastAPI community for the high-performance API framework
-- Render for free-tier cloud hosting
-
----
-
-<div align="center">
-
-**⭐ Star this repo if you found it helpful!**
-
-[Report Bug](issues) • [Request Feature](issues) • [Documentation](docs/)
-
-Made with ❤️ and ☕ by [Ishan Shirode]
-
-</div>
+MIT
