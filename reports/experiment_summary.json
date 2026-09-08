@@ -1,0 +1,51 @@
+{
+  "dataset": "ELEC2 (Harries 1999)",
+  "n_rows": 45312,
+  "n_batches": 31,
+  "batch_size": 1440,
+  "bootstrap_batches": 3,
+  "n_evaluated_batches": 28,
+  "static_mean_accuracy": 0.6988,
+  "driftguard_mean_accuracy": 0.7064,
+  "absolute_improvement": 0.0076,
+  "relative_improvement_pct": 1.09,
+  "static_mean_f1": 0.4515,
+  "driftguard_mean_f1": 0.5789,
+  "batches_where_driftguard_better": 17,
+  "batches_where_static_better": 8,
+  "n_retrains_triggered": 12,
+  "n_promotions": 7,
+  "final_model_version": 13,
+  "most_drifted_features": [
+    {
+      "feature": "nswprice",
+      "times_drifted": 28,
+      "n": 28,
+      "drift_rate": 1.0
+    },
+    {
+      "feature": "nswdemand",
+      "times_drifted": 25,
+      "n": 28,
+      "drift_rate": 0.893
+    },
+    {
+      "feature": "vicprice",
+      "times_drifted": 19,
+      "n": 28,
+      "drift_rate": 0.679
+    },
+    {
+      "feature": "vicdemand",
+      "times_drifted": 18,
+      "n": 28,
+      "drift_rate": 0.643
+    },
+    {
+      "feature": "transfer",
+      "times_drifted": 18,
+      "n": 28,
+      "drift_rate": 0.643
+    }
+  ]
+}
